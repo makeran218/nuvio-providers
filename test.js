@@ -1,11 +1,11 @@
 // test-myprovider.js
-const { getStreams } = require('./providers/idlix.js');
+const { getStreams } = require('./providers/filmkita.js');
 
 async function test() {
     console.log('--- Starting Extraction Test ---');
     try {
         // Calling getStreams with a TMDB ID and Type
-        const streams = await getStreams('1198994', 'movie');
+        const streams = await getStreams('875828', 'movie');
 
         console.log(`Summary: Found ${streams.length} stream(s)\n`);
 

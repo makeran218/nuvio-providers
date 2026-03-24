@@ -15,30 +15,18 @@
       "logo": "https://kisskh.ovh/favicon.ico",
       "contentLanguage": ["en", "id"]
     },
+
     {
-      "id": "adimoviebox",
-      "name": "Adimoviebox",
-      "description": "Auto-generated description for Adimoviebox",
+      "id": "filmkita",
+      "name": "FilmKita",
+      "description": "Film & Serial Sub Indo",
       "version": "1.0.0",
       "author": "makeran218",
       "supportedTypes": ["movie", "tv"],
-      "filename": "providers/adimoviebox.js",
+      "filename": "providers/filmkita.js",
       "enabled": true,
       "formats": ["mp4", "m3u8"],
-      "logo": "https://via.placeholder.com/150",
-      "contentLanguage": ["en"]
-    },
-    {
-      "id": "idlix",
-      "name": "Idlix",
-      "description": "Auto-generated description for Idlix",
-      "version": "1.0.0",
-      "author": "makeran218",
-      "supportedTypes": ["movie", "tv"],
-      "filename": "providers/idlix.js",
-      "enabled": true,
-      "formats": ["mp4", "m3u8"],
-      "logo": "https://tv12.idlixku.com/wp-content/uploads/2022/11/5_logoIDLIX_LEBARAN.webp",
+      "logo": "https://s4.iix.llc/wp-content/uploads/2025/08/cropped-filmkita.png",
       "contentLanguage": ["en"]
     }
   ]
