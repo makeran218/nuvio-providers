@@ -1,4 +1,4 @@
-# Michat88's Nuvio Providers
+# makeran218's Nuvio Providers
 
 A collection of local scrapers for the Nuvio streaming application. These scrapers allow you to fetch streams from various sources directly within the app.
 
@@ -7,9 +7,11 @@ A collection of local scrapers for the Nuvio streaming application. These scrape
 1. Open Nuvio app
 2. Go to Settings → Local Scrapers
 3. Add this repository URL (**Copy exactly as shown below**):
+
    ```
-   https://raw.githubusercontent.com/michat88/nuvio-providers/refs/heads/main/
+   https://raw.githubusercontent.com/makeran218/nuvio-providers/refs/heads/main/
    ```
+
    > **Note:** The `refs/heads/main/` part is required by the Nuvio app. Do not remove it.
 
 4. Enable the scrapers you want to use (e.g., Kisskh, MovieBox)
@@ -19,6 +21,7 @@ A collection of local scrapers for the Nuvio streaming application. These scrape
 **💡 Tip:** Check existing scrapers in the `providers/` directory for real working examples before starting your own.
 
 ### Core Function
+
 **⚠️ IMPORTANT:** Your scraper must use Promise-based approach only. **async/await is NOT supported** in this sandboxed environment.
 
 Your scraper must export a `getStreams` function that returns a Promise:
@@ -34,7 +37,7 @@ function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
 }
 
 // Export for React Native compatibility
-if (typeof module !== 'undefined' && module.exports) {
+if (typeof module !== "undefined" && module.exports) {
   module.exports = { getStreams };
 } else {
   global.getStreams = getStreams;
@@ -42,12 +45,14 @@ if (typeof module !== 'undefined' && module.exports) {
 ```
 
 **Parameters:**
+
 - `tmdbId` (string): TMDB ID
 - `mediaType` (string): "movie" or "tv"
 - `seasonNum` (number): Season number (TV only)
 - `episodeNum` (number): Episode number (TV only)
 
 ### Stream Object Format
+
 Each stream must return this exact format (see `providers/moviebox.js` for real examples):
 
 ```javascript
@@ -63,6 +68,7 @@ Each stream must return this exact format (see `providers/moviebox.js` for real 
 ```
 
 ### React Native Compatibility
+
 - **❌ async/await is NOT supported** in this sandboxed environment
 - **✅ Promise-based approach is COMPULSORY** - use `.then()` and `.catch()`
 - Use `fetch()` for HTTP requests (no axios)
@@ -70,16 +76,18 @@ Each stream must return this exact format (see `providers/moviebox.js` for real 
 - Avoid Node.js modules (fs, path, crypto)
 
 ### Manifest Entry
+
 Add your scraper to `manifest.json`. If you have set up the GitHub Action, this will happen automatically when you push a new `.js` file to the `providers` folder.
 
 Manual entry example:
+
 ```json
 {
   "id": "kisskh",
   "name": "Kisskh",
   "description": "Asian Drama & Anime streaming",
   "version": "1.0.0",
-  "author": "Michat88",
+  "author": "makeran218",
   "supportedTypes": ["movie", "tv"],
   "filename": "providers/kisskh.js",
   "enabled": true,
@@ -94,8 +102,9 @@ Manual entry example:
 ### Development Workflow
 
 1. **Clone this repository**
+
    ```bash
-   git clone https://github.com/michat88/nuvio-providers.git
+   git clone https://github.com/makeran218/nuvio-providers.git
    cd nuvio-providers
    ```
 
@@ -134,7 +143,7 @@ Before submitting, ensure your scraper:
 
 ## 📄 License
 
-[![GNU GPLv3 Image](https://www.gnu.org/graphics/gplv3-127x51.png)]([http://www.gnu.org/licenses/gpl-3.0.en.html](http://www.gnu.org/licenses/gpl-3.0.en.html))
+[![GNU GPLv3 Image](https://www.gnu.org/graphics/gplv3-127x51.png)](<[http://www.gnu.org/licenses/gpl-3.0.en.html](http://www.gnu.org/licenses/gpl-3.0.en.html)>)
 
 These scrapers are **free software**: you can use, study, share, and modify them as you wish.
 
@@ -154,4 +163,4 @@ If you believe content is violating copyright laws, please contact the **actual 
 
 ---
 
-**Thank You for using Michat88's Nuvio Providers!**
+**Thank You for using makeran218's Nuvio Providers!**
