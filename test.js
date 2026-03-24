@@ -1,11 +1,11 @@
 // test-myprovider.js
-const { getStreams } = require('./providers/kisskh.js');
+const { getStreams } = require('./providers/idlix.js');
 
 async function test() {
     console.log('--- Starting Extraction Test ---');
     try {
         // Calling getStreams with a TMDB ID and Type
-        const streams = await getStreams('1434', 'tv', 24, 1);
+        const streams = await getStreams('1198994', 'movie');
 
         console.log(`Summary: Found ${streams.length} stream(s)\n`);
 
