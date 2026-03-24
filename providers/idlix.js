@@ -1,132 +1,97 @@
 const cheerio = require('cheerio-without-node-native');
 
-const BASE_URL = "https://tv10.idlixku.com"; // Update domain jika perlu
+// Use the domain from your successful HTML log
+const BASE_URL = "https://tv12.idlixku.com";
 
-function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
-    return new Promise((resolve, reject) => {
-        // 1. Dapatkan Metadata TMDB dulu untuk slug
+async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
+    try {
+        console.log(`--- Fetching Metadata for TMDB: ${tmdbId} ---`);
+
         const tmdbUrl = `https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=b030404650f279792a8d3287232358e3`;
+        const tmdbRes = await fetch(tmdbUrl);
+        const tmdbData = await tmdbRes.json();
 
-        fetch(tmdbUrl)
-        .then(res => res.json())
-        .then(tmdbData => {
-            // Konversi judul ke format slug Idlix
-            // Contoh: "The Flash" -> "the-flash"
-            const title = tmdbData.title || tmdbData.name;
-            const year = (tmdbData.release_date || tmdbData.first_air_date || "").substring(0, 4);
-            
-            const slug = title.toLowerCase()
-                .replace(/[^a-z0-9\s-]/g, '') // Hapus karakter spesial
-                .trim()
-                .replace(/\s+/g, '-'); // Spasi jadi dash
+        if (!tmdbData.name && !tmdbData.title) {
+            console.error("TMDB Data not found. Check your API Key or ID.");
+            return [];
+        }
 
-            // 2. Bangun URL Halaman Idlix
-            let url;
-            if (mediaType === 'movie') {
-                url = `${BASE_URL}/movie/${slug}-${year}`;
-            } else {
-                // Format TV: title-season-1-episode-1
-                url = `${BASE_URL}/episode/${slug}-season-${seasonNum}-episode-${episodeNum}`;
-            }
+        const title = tmdbData.title || tmdbData.name;
+        const year = (tmdbData.release_date || tmdbData.first_air_date || "").substring(0, 4);
 
-            console.log("Idlix Target URL:", url);
-            
-            return fetch(url).then(res => res.text()).then(html => ({html, url}));
-        })
-        .then(({html, pageUrl}) => {
-            const $ = cheerio.load(html);
-            
-            // 3. Ekstrak Nonce dan Time (Sesuai kode Kotlin invokeIdlix)
-            // Regex: window.idlixNonce='...' window.idlixTime=...
-            const scriptContent = $('script:contains("window.idlix")').html();
-            const nonceMatch = scriptContent.match(/window\.idlixNonce=['"]([a-f0-9]+)['"]/);
-            const timeMatch = scriptContent.match(/window\.idlixTime=(\d+)/);
+        // IDLIX SLUG RULE: lowercase, no special chars, dashes for spaces
+        const slug = title.toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .trim()
+            .replace(/\s+/g, '-');
 
-            if (!nonceMatch || !timeMatch) {
-                throw new Error("Gagal mengambil token keamanan Idlix (Nonce/Time)");
-            }
+        let targetUrl;
+        if (mediaType === 'movie') {
+            targetUrl = `${BASE_URL}/movie/${slug}-${year}/`;
+        } else {
+            // Updated TV Pattern: Often Idlix uses /episode/slug-season-X-episode-Y/
+            targetUrl = `${BASE_URL}/episode/${slug}-season-${seasonNum}-episode-${episodeNum}/`;
+        }
 
-            const idlixNonce = nonceMatch[1];
-            const idlixTime = timeMatch[1];
-            
-            // 4. Cari Player Options
-            // Kotlin: document.select("ul#playeroptionsul > li")
-            const promises = [];
-            
-            $('ul#playeroptionsul > li').each((i, el) => {
-                const postId = $(el).attr('data-post');
-                const nume = $(el).attr('data-nume');
-                const type = $(el).attr('data-type');
-                
-                // Siapkan AJAX Request
-                const ajaxUrl = `${BASE_URL}/wp-admin/admin-ajax.php`;
-                const formData = new URLSearchParams();
-                formData.append('action', 'doo_player_ajax');
-                formData.append('post', postId);
-                formData.append('nume', nume);
-                formData.append('type', type);
-                formData.append('_n', idlixNonce);
-                formData.append('_p', postId);
-                formData.append('_t', idlixTime);
+        console.log("Targeting URL:", targetUrl);
 
-                const req = fetch(ajaxUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Referer': pageUrl
-                    },
-                    body: formData.toString()
-                })
-                .then(r => r.json())
-                .then(json => {
-                    // DI SINI TAHAP SULITNYA
-                    // JSON response berisi: { embed_url: "...", key: "..." }
-                    // Kotlin melakukan dekripsi di sini: 
-                    // val metrix = parseJson<AesData>(json.embed_url).m
-                    // val password = createIdlixKey(json.key, metrix)
-                    // AesHelper.cryptoAESHandler(...)
-                    
-                    // KARENA KITA DI SANDBOX TANPA LIBRARY CRYPTO:
-                    // Kita tidak bisa mendekripsi ini dengan mudah.
-                    
-                    // Untuk saat ini, kita log saja bahwa kita berhasil dapat data terenkripsi.
-                    // Jika kamu ingin melanjutkannya, kamu harus inject library AES JS di sini.
-                    console.log(`Berhasil fetch data player (Encrypted) untuk Source ${nume}`);
-                    return null; 
+        const response = await fetch(targetUrl);
+        if (response.status === 404) {
+            console.error(`404 Error: Idlix slug might be different. Tried: ${targetUrl}`);
+            return [];
+        }
+
+        const html = await response.text();
+        const $ = cheerio.load(html);
+
+        // Find the player tokens
+        const scriptContent = $('script').filter((i, s) => {
+            const h = $(s).html();
+            return h && h.includes('window.idlix');
+        }).html();
+
+        if (!scriptContent) {
+            console.error("No player tokens (Nonce/Time) found on page.");
+            return [];
+        }
+
+        const nonce = scriptContent.match(/window\.idlixNonce=['"]([a-f0-9]+)['"]/)?.[1];
+        const time = scriptContent.match(/window\.idlixTime=(\d+)/)?.[1];
+
+        const streams = [];
+        const playerOptions = $('ul#playeroptionsul > li').toArray();
+
+        for (const el of playerOptions) {
+            const data = {
+                action: 'doo_player_ajax',
+                post: $(el).attr('data-post'),
+                nume: $(el).attr('data-nume'),
+                type: $(el).attr('data-type'),
+                _n: nonce,
+                _t: time
+            };
+
+            const ajaxRes = await fetch(`${BASE_URL}/wp-admin/admin-ajax.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams(data).toString()
+            }).then(r => r.json());
+
+            if (ajaxRes.embed_url) {
+                // Since we can't use crypto-js, we take the raw embed (iframe)
+                // and extract the link if it's not encrypted, or return the data for manual handling
+                console.log(`Found Source [${data.nume}]: ${ajaxRes.embed_url.substring(0, 50)}...`);
+                streams.push({
+                    server: data.nume,
+                    data: ajaxRes.embed_url
                 });
-                
-                promises.push(req);
-            });
-            
-            return Promise.all(promises);
-        })
-        .then(results => {
-            // Saat ini return kosong karena belum ada dekripsi
-            resolve([]); 
-        })
-        .catch(err => {
-            console.error("Idlix Error:", err);
-            resolve([]);
-        });
-    });
+            }
+        }
+
+        return streams;
+    } catch (err) {
+        console.error("Scraper Crash:", err);
+        return [];
+    }
 }
 
-// Helper untuk mendekode logika custom string Idlix (Ini Bagian Mudah)
-// Bagian AES-nya yang sulit tanpa library.
-function createIdlixKey(r, m) {
-    const rList = r.split('x').filter(Boolean);
-    let n = "";
-    let reversedM = m.split("").reverse().join("");
-    
-    // Base64 decode manual (bisa pakai atob di browser env)
-    // ...
-    
-    return n;
-}
-
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { getStreams };
-} else {
-    global.getStreams = getStreams;
-}
