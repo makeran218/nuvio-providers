@@ -5,7 +5,7 @@ async function test() {
     console.log('--- Starting Extraction Test ---');
     try {
         // Calling getStreams with a TMDB ID and Type
-        const streams = await getStreams('875828', 'movie');
+        const streams = await getStreams('226637', 'tv', 1, 3);
 
         console.log(`Summary: Found ${streams.length} stream(s)\n`);
 

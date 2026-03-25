@@ -2,17 +2,38 @@ const MAIN_URL = "https://s4.iix.llc";
 const TMDB_API_KEY = "b030404650f279792a8d3287232358e3";
 
 /**
- * Decodes Layarwibu HLS from player2 Base64 strings
+ * Robust Decoder for Layarwibu /player2/ Base64
+ */
+/**
+ * Universal Base64 Decoder (Node + Browser/Plugin compatible)
  */
 function decodeLayarwibu(url) {
     try {
         if (url.includes("/player2/")) {
-            const encodedPart = url.split("/player2/")[1].split("?")[0];
-            const decoded = Buffer.from(decodeURIComponent(encodedPart), 'base64').toString('utf-8').trim();
-            if (decoded.startsWith("http")) return decoded;
+            const match = url.match(/\/player2\/([A-Za-z0-9+/=]+)/);
+            if (match && match[1]) {
+                const encoded = decodeURIComponent(match[1]);
+                let decoded = "";
+
+                // Check for Node.js Buffer
+                if (typeof Buffer !== 'undefined') {
+                    decoded = Buffer.from(encoded, 'base64').toString('utf-8');
+                }
+                // Fallback to Browser/WebView atob
+                else if (typeof atob !== 'undefined') {
+                    decoded = atob(encoded);
+                }
+                // Manual fallback for very restricted engines
+                else {
+                    return url;
+                }
+
+                decoded = decoded.trim();
+                if (decoded.startsWith("http")) return decoded;
+            }
         }
     } catch (e) {
-        console.log("[-] Base64 Decode Fail:", e.message);
+        // Log error if your environment supports console
     }
     return url;
 }
@@ -24,7 +45,7 @@ async function getStreams(tmdbId, mediaType, seasonNum = 1, episodeNum = 1) {
     };
 
     try {
-        // 1. Get Title from TMDB
+        // 1. Resolve Title
         const isTV = mediaType === 'tv' || mediaType === 'series';
         const type = isTV ? 'tv' : 'movie';
         const tmdbRes = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}?api_key=${TMDB_API_KEY}`);
@@ -32,49 +53,33 @@ async function getStreams(tmdbId, mediaType, seasonNum = 1, episodeNum = 1) {
         const title = tmdbData.title || tmdbData.name;
         if (!title) return [];
 
-        console.log(`[*] Target: ${title} | S${seasonNum} E${episodeNum}`);
-
-        // 2. Search for the main Show/Movie
+        // 2. Search
         const searchUrl = `${MAIN_URL}/?s=${encodeURIComponent(title)}&post_type%5B%5D=post&post_type%5B%5D=tv`;
         const searchRes = await fetch(searchUrl, { headers });
         const searchHtml = await searchRes.text();
 
         const mainLinkMatch = searchHtml.match(/<a href="([^"]+)" class="button gmr-watch-button"/i);
         let currentUrl = mainLinkMatch ? mainLinkMatch[1] : null;
+        if (!currentUrl) return [];
 
-        if (!currentUrl) {
-            console.log("[-] Main content link not found.");
-            return [];
-        }
-
-        // 3. Navigate to Episode for TV
+        // 3. TV Navigation
         if (isTV) {
             const showPageRes = await fetch(currentUrl, { headers });
             const showPageHtml = await showPageRes.text();
-
-            // Match the S{X} Eps{Y} button
             const epRegex = new RegExp(`<a[^>]+href="([^"]+)"[^>]*>S${seasonNum}\\s+Eps${episodeNum}<\/a>`, 'i');
             const epMatch = showPageHtml.match(epRegex);
-
-            if (!epMatch) {
-                console.log(`[-] Episode S${seasonNum} E${episodeNum} not found.`);
-                return [];
-            }
+            if (!epMatch) return [];
             currentUrl = epMatch[1];
-            console.log(`[+] Episode URL: ${currentUrl}`);
         }
 
-        // 4. LOAD FINAL PAGE & EXTRACT IFRAME DIRECTLY
+        // 4. Extract Iframe
         const finalPageRes = await fetch(currentUrl, { headers });
         const finalPageHtml = await finalPageRes.text();
-
-        // Target the gmr-embed-responsive div specifically
         const iframeRegex = /<div class="gmr-embed-responsive"><iframe src="([^"]+)"/i;
         let streamUrl = finalPageHtml.match(iframeRegex)?.[1];
 
-        // 5. Fallback to AJAX if direct iframe is missing (e.g. lazy loaded)
+        // 5. AJAX Fallback
         if (!streamUrl) {
-            console.log("[*] Iframe not found in HTML, trying AJAX...");
             const postId = (finalPageHtml.match(/data-id="(\d+)"/) || finalPageHtml.match(/postid-(\d+)/))?.[1];
             if (postId) {
                 const ajaxRes = await fetch(`${MAIN_URL}/wp-admin/admin-ajax.php`, {
@@ -89,16 +94,16 @@ async function getStreams(tmdbId, mediaType, seasonNum = 1, episodeNum = 1) {
         }
 
         if (streamUrl) {
+            // Clean the URL before decoding
             if (streamUrl.startsWith('//')) streamUrl = `https:${streamUrl}`;
-            console.log(`[!] Raw Embed: ${streamUrl}`);
 
+            // EXECUTE DECODE
             const decodedUrl = decodeLayarwibu(streamUrl);
             const urlObj = new URL(decodedUrl);
 
-            console.log(`[+] Final HLS: ${decodedUrl}`);
-
             streams.push({
                 name: "Layarwibu HLS",
+                title: decodedUrl,
                 url: decodedUrl,
                 headers: {
                     "Referer": `${urlObj.origin}/`,
@@ -110,7 +115,6 @@ async function getStreams(tmdbId, mediaType, seasonNum = 1, episodeNum = 1) {
 
         return streams;
     } catch (err) {
-        console.log(`[!] Error: ${err.message}`);
         return [];
     }
 }
