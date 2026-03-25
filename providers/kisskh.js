@@ -64,12 +64,21 @@ async function getStreams(tmdbId, mediaType, seasonNum, episodeNum) {
 
         rawLinks.forEach(item => {
             if (item.url && (item.url.includes('.m3u8') || item.url.includes('.mp4')) && !item.url.includes('/e/')) {
+                const baseTitle = (matched && matched.title) ? matched.title : targetTitle;
+
+                // 2. Determine Episode Number
+                // Priority: targetEp.number > incoming episodeNum > "1"
+                const epDisplay = (targetEp && targetEp.number) ? targetEp.number : (episodeNum || 1);
+
+                // 3. Construct Final String
+                const finalDisplayTitle = type === 'tv'
+                    ? `${baseTitle} - Episode ${epDisplay}`
+                    : `${baseTitle} (${targetYear || ''})`;
                 streams.push({
                     name: item.name,
-                    title: `${title} - Episode ${targetEp.number}`,
+                    title: finalDisplayTitle,
                     url: item.url,
-                    quality: "Auto",
-                    subtitles: subtitleTracks, // Subtitles attached to each stream
+                    subtitles: subtitleTracks,
                     headers: {
                         "Origin": MAIN_URL,
                         "Referer": MAIN_URL,

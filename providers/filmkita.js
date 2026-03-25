@@ -100,10 +100,16 @@ async function getStreams(tmdbId, mediaType, seasonNum = 1, episodeNum = 1) {
             // EXECUTE DECODE
             const decodedUrl = decodeLayarwibu(streamUrl);
             const urlObj = new URL(decodedUrl);
+            // 1. Construct the Display Title based on Media Type
+            let displayTitle = title; // This is the 'title' or 'name' we got from TMDB earlier
 
+            if (isTV) {
+                // Formats as: "High Potential - S1 E6"
+                displayTitle = `${title} - S${seasonNum} E${episodeNum}`;
+            }
             streams.push({
                 name: "Layarwibu HLS",
-                title: decodedUrl,
+                title: displayTitle,
                 url: decodedUrl,
                 headers: {
                     "Referer": `${urlObj.origin}/`,
